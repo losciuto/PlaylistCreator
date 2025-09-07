@@ -25,6 +25,9 @@ from database.video_db import VideoDatabase
 from gui.scan_worker import ScanWorker
 from gui.widgets import create_db_table_widget
 
+from filters.filter_manager import FilterManager, FilterSettings
+from filters.filter_utils import FilterQueryBuilder
+from filters.filter_widgets import MultiSelectFilterWidget, YearFilterWidget, RatingFilterWidget
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -112,11 +115,11 @@ class MainWindow(QMainWindow):
                 min-width: 200px;
             }
             QPushButton:hover {
-                transform: scale(1.03);
+                padding: 14px 24px; /* Leggermente più piccolo */
                 background-color: #45a049;
             }
             QPushButton:pressed {
-                transform: scale(0.97);
+                background-color: #3d8b40;
             }
             QPushButton:disabled {
                 background-color: #555555;
@@ -230,7 +233,7 @@ class MainWindow(QMainWindow):
         )
         extensions_label.setStyleSheet("""
             QLabel {
-                font-size: 12px;  # Ridotto per far entrare tutto
+                font-size: 12px; 
                 color: #cccccc;
                 padding: 12px;
                 background-color: #2b2b2b;
@@ -292,10 +295,12 @@ class MainWindow(QMainWindow):
                 min-width: 120px;
             }
             QPushButton:hover {
-                transform: scale(1.02);
+                padding: 14px 24px; /* Leggermente più piccolo */
+                background-color: #45a049;
             }
             QPushButton:pressed {
-                transform: scale(0.98);
+                padding: 14px 24px; /* Leggermente più piccolo */
+                background-color: #3d8b40;
             }
             QTableWidget {
                 background-color: #3c3c3c;
@@ -332,7 +337,7 @@ class MainWindow(QMainWindow):
         title_label = QLabel("GESTIONE DATABASE")
         title_label.setStyleSheet("""
             QLabel {
-                font-size: 20px;  # Ridotto da 24px
+                font-size: 20px;  
                 font-weight: bold;
                 color: #4CAF50;
                 padding: 8px;
@@ -498,28 +503,35 @@ class MainWindow(QMainWindow):
             QPushButton {
                 border: none;
                 border-radius: 6px;
-                padding: 12px 20px;
+                padding: 12px 15px;
                 font-weight: bold;
                 font-size: 12px;
                 min-width: 120px;
             }
             QPushButton:hover {
-                transform: scale(1.02);
+                padding: 14px 24px; /* Leggermente più piccolo */
+                /* transform: scale(1.02); */
             }
             QPushButton:pressed {
-                transform: scale(0.98);
+                padding: 14px 24px; /* Leggermente più piccolo */
+                /*transform: scale(0.98);*/
             }
         """)
 
         layout = QVBoxLayout(playlist_tab)
-        layout.setSpacing(20)
-        layout.setContentsMargins(25, 25, 25, 25)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        with sqlite3.connect(self.db.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM videos")
+            count = cursor.fetchone()[0]
 
         # Titolo della sezione
-        title_label = QLabel("GENERA PLAYLIST")
+        title_label = QLabel("GENERA PLAYLIST"+f" (video presenti: {count})")
         title_label.setStyleSheet("""
             QLabel {
-                font-size: 24px;
+                font-size: 20px;
                 font-weight: bold;
                 color: #4CAF50;
                 padding: 10px;
@@ -530,9 +542,10 @@ class MainWindow(QMainWindow):
             }
         """)
         title_label.setAlignment(Qt.AlignCenter)
+
         layout.addWidget(title_label)
 
-        # Container per i bottoni di generazione
+        # Container per i bottoni di generazione - DUE COLONNE
         generation_frame = QFrame()
         generation_frame.setStyleSheet("""
             QFrame {
@@ -555,19 +568,23 @@ class MainWindow(QMainWindow):
         """)
         generation_layout.addWidget(generation_title)
 
-        # Bottoni di generazione in grid
+        # Grid layout a 2 colonne per i bottoni
         buttons_grid = QGridLayout()
-        buttons_grid.setSpacing(15)
+        buttons_grid.setSpacing(10)
+        buttons_grid.setContentsMargins(10, 0, 10, 0)
 
-        # Bottone Playlist Casuale
-        self.btn_random = QPushButton("🎲 Playlist Casuale")
+        # Bottoni di generazione - PRIMA COLONNA
+        self.btn_random = QPushButton("🎲 Playlist\nCasuale")
         self.btn_random.setStyleSheet("""
             QPushButton {
                 background-color: #FF9800;
                 color: white;
-                font-size: 13px;
+                font-size: 11px;
+                padding: 15px 10px;
+                min-height: 60px;
             }
             QPushButton:hover {
+                padding: 14px 24px; /* Leggermente più piccolo */
                 background-color: #F57C00;
             }
             QPushButton:disabled {
@@ -577,14 +594,39 @@ class MainWindow(QMainWindow):
         """)
         self.btn_random.clicked.connect(self.generate_random_playlist)
         self.btn_random.setCursor(Qt.PointingHandCursor)
+        buttons_grid.addWidget(self.btn_random, 0, 0)
 
-        # Bottone Più Recenti
+        # Bottone per playlist casuale con filtri
+        self.btn_random_with_filters = QPushButton("🎲 Playlist Casuale\ncon Filtri")
+        self.btn_random_with_filters.setStyleSheet("""
+            QPushButton {
+                background-color: #9C27B0;
+                color: white;
+                font-size: 11px;
+                padding: 15px 10px;
+                min-height: 60px;
+            }
+            QPushButton:hover {
+                background-color: #7B1FA2;
+            }
+            QPushButton:disabled {
+                background-color: #553c68;
+                color: #cccccc;
+            }
+        """)
+        self.btn_random_with_filters.clicked.connect(self.show_filters_dialog)
+        self.btn_random_with_filters.setCursor(Qt.PointingHandCursor)
+        buttons_grid.addWidget(self.btn_random_with_filters, 1, 0)
+
+        # SECONDA COLONNA
         self.btn_recent = QPushButton("🕒 Più Recenti")
         self.btn_recent.setStyleSheet("""
             QPushButton {
                 background-color: #2196F3;
                 color: white;
-                font-size: 13px;
+                font-size: 11px;
+                padding: 15px 10px;
+                min-height: 60px;
             }
             QPushButton:hover {
                 background-color: #1976D2;
@@ -596,35 +638,33 @@ class MainWindow(QMainWindow):
         """)
         self.btn_recent.clicked.connect(self.generate_recent_playlist)
         self.btn_recent.setCursor(Qt.PointingHandCursor)
+        buttons_grid.addWidget(self.btn_recent, 0, 1)
 
-        # Bottone Selezione Manuale
-        self.btn_manual = QPushButton("✏️ Selezione Manuale")
+        self.btn_manual = QPushButton("✏️ Selezione\nManuale")
         self.btn_manual.setStyleSheet("""
             QPushButton {
-                background-color: #9C27B0;
+                background-color: #607D8B;
                 color: white;
-                font-size: 13px;
+                font-size: 11px;
+                padding: 15px 10px;
+                min-height: 60px;
             }
             QPushButton:hover {
-                background-color: #7B1FA2;
+                background-color: #455A64;
             }
             QPushButton:disabled {
-                background-color: #553c68;
+                background-color: #37474F;
                 color: #cccccc;
             }
         """)
         self.btn_manual.clicked.connect(self.show_manual_selection)
         self.btn_manual.setCursor(Qt.PointingHandCursor)
+        buttons_grid.addWidget(self.btn_manual, 1, 1)
 
-        # Aggiungi bottoni alla grid
-        buttons_grid.addWidget(self.btn_random, 0, 0)
-        buttons_grid.addWidget(self.btn_recent, 0, 1)
-        buttons_grid.addWidget(self.btn_manual, 0, 2)
         generation_layout.addLayout(buttons_grid)
-
         layout.addWidget(generation_frame)
 
-        # Container per i bottoni di azione
+        # Container per i bottoni di azione - ANCORA 2 COLONNE
         action_frame = QFrame()
         action_frame.setStyleSheet("""
             QFrame {
@@ -647,17 +687,20 @@ class MainWindow(QMainWindow):
         """)
         action_layout.addWidget(action_title)
 
-        # Bottoni di azione in grid
+        # Grid layout a 2 colonne per i bottoni di azione
         action_grid = QGridLayout()
-        action_grid.setSpacing(15)
+        action_grid.setSpacing(10)
+        action_grid.setContentsMargins(10, 0, 10, 0)
 
-        # Bottone Mostra Poster
-        self.btn_show_posters = QPushButton("🎨 Mostra Poster")
+        # Bottoni di azione - PRIMA COLONNA
+        self.btn_show_posters = QPushButton("🎨 Mostra\nPoster")
         self.btn_show_posters.setStyleSheet("""
             QPushButton {
                 background-color: #E91E63;
                 color: white;
-                font-size: 13px;
+                font-size: 11px;
+                padding: 15px 10px;
+                min-height: 60px;
             }
             QPushButton:hover {
                 background-color: #C2185B;
@@ -669,15 +712,16 @@ class MainWindow(QMainWindow):
         """)
         self.btn_show_posters.clicked.connect(self.show_playlist_posters)
         self.btn_show_posters.setEnabled(False)
-        self.btn_show_posters.setCursor(Qt.PointingHandCursor)
+        action_grid.addWidget(self.btn_show_posters, 0, 0)
 
-        # Bottone Riproduci con VLC
-        self.btn_play_vlc = QPushButton("▶️ Riproduci con VLC")
+        self.btn_play_vlc = QPushButton("▶️ Riproduci\ncon VLC")
         self.btn_play_vlc.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
                 color: white;
-                font-size: 13px;
+                font-size: 11px;
+                padding: 15px 10px;
+                min-height: 60px;
             }
             QPushButton:hover {
                 background-color: #45a049;
@@ -689,29 +733,48 @@ class MainWindow(QMainWindow):
         """)
         self.btn_play_vlc.clicked.connect(self.play_with_vlc)
         self.btn_play_vlc.setEnabled(False)
-        self.btn_play_vlc.setCursor(Qt.PointingHandCursor)
+        action_grid.addWidget(self.btn_play_vlc, 1, 0)
 
-        # Bottone Ferma VLC
-        self.btn_stop_vlc = QPushButton("⏹️ Ferma VLC")
+        # SECONDA COLONNA
+        self.btn_stop_vlc = QPushButton("⏹️ Ferma\nVLC")
         self.btn_stop_vlc.setStyleSheet("""
             QPushButton {
                 background-color: #f44336;
                 color: white;
-                font-size: 13px;
+                font-size: 11px;
+                padding: 15px 10px;
+                min-height: 60px;
             }
             QPushButton:hover {
                 background-color: #da190b;
             }
         """)
         self.btn_stop_vlc.clicked.connect(self.cleanup_vlc)
-        self.btn_stop_vlc.setCursor(Qt.PointingHandCursor)
+        action_grid.addWidget(self.btn_stop_vlc, 0, 1)
 
-        # Aggiungi bottoni alla grid
-        action_grid.addWidget(self.btn_show_posters, 0, 0)
-        action_grid.addWidget(self.btn_play_vlc, 0, 1)
-        action_grid.addWidget(self.btn_stop_vlc, 0, 2)
+        # Bottone aggiuntivo per bilanciare il layout (puoi aggiungere funzionalità qui se vuoi)
+        self.btn_export_playlist = QPushButton("💾 Esporta\nPlaylist")
+        self.btn_export_playlist.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9800;
+                color: white;
+                font-size: 11px;
+                padding: 15px 10px;
+                min-height: 60px;
+            }
+            QPushButton:hover {
+                background-color: #F57C00;
+            }
+            QPushButton:disabled {
+                background-color: #7a5c29;
+                color: #cccccc;
+            }
+        """)
+        self.btn_export_playlist.clicked.connect(self.export_playlist)
+        self.btn_export_playlist.setCursor(Qt.PointingHandCursor)
+        action_grid.addWidget(self.btn_export_playlist, 1, 1)
+
         action_layout.addLayout(action_grid)
-
         layout.addWidget(action_frame)
 
         # Status della playlist
@@ -760,6 +823,257 @@ class MainWindow(QMainWindow):
 
         self.tabs.addTab(playlist_tab, "Genera Playlist")
 
+    def export_playlist(self):
+        """Esporta la playlist corrente in un file"""
+        if not self.current_playlist:
+            QMessageBox.warning(self, "Attenzione", "Nessuna playlist da esportare!")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Esporta Playlist", "playlist_esportata.m3u", "File M3U (*.m3u)"
+        )
+
+        if file_path:
+            try:
+                self.save_playlist_m3u(file_path)
+                QMessageBox.information(self, "Esportazione Completata",
+                                        f"Playlist esportata con successo in:\n{file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Errore", f"Errore durante l'esportazione: {str(e)}")
+
+    def show_filters_dialog(self):
+        """Mostra il popup per applicare filtri alla playlist casuale"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Playlist Casuale con Filtri")
+        dialog.resize(700, 600)
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #2b2b2b;
+                color: #ffffff;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            QPushButton {
+                border: none;
+                border-radius: 6px;
+                padding: 10px 16px;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                padding: 14px 24px; /* Leggermente più piccolo */
+                /*transform: scale(1.02);*/
+            }
+            QPushButton:pressed {
+                padding: 14px 24px; /* Leggermente più piccolo */
+                /*transform: scale(0.98);*/
+            }
+        """)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Titolo
+        title_label = QLabel("🎛️ FILTRI PLAYLIST CASUALE")
+        title_label.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #4CAF50;
+                text-align: center;
+                margin-bottom: 10px;
+            }
+        """)
+        layout.addWidget(title_label)
+
+        # Descrizione
+        desc_label = QLabel("Seleziona i criteri per filtrare i video nella playlist casuale:")
+        desc_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+                color: #cccccc;
+                text-align: center;
+                margin-bottom: 15px;
+            }
+        """)
+        desc_label.setWordWrap(True)
+        layout.addWidget(desc_label)
+
+        # Container scrollabile per i filtri
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: 1px solid #555555;
+                border-radius: 5px;
+                background-color: #3c3c3c;
+            }
+        """)
+
+        filters_container = QWidget()
+        filters_container_layout = QVBoxLayout(filters_container)
+        filters_container_layout.setSpacing(15)
+        filters_container_layout.setContentsMargins(15, 15, 15, 15)
+
+        # Widget filtri
+        filter_widgets = {}
+
+        # Generi
+        genres_widget = MultiSelectFilterWidget("🎬 Generi", self.db.db_path, "genres")
+        filter_widgets['genres'] = genres_widget
+        filters_container_layout.addWidget(genres_widget)
+
+        # Anni
+        years_widget = YearFilterWidget("📅 Anni", self.db.db_path)
+        filter_widgets['years'] = years_widget
+        filters_container_layout.addWidget(years_widget)
+
+        # Attori
+        actors_widget = MultiSelectFilterWidget("🎭 Attori", self.db.db_path, "actors")
+        filter_widgets['actors'] = actors_widget
+        filters_container_layout.addWidget(actors_widget)
+
+        # Registi
+        directors_widget = MultiSelectFilterWidget("🎥 Registi", self.db.db_path, "directors")
+        filter_widgets['directors'] = directors_widget
+        filters_container_layout.addWidget(directors_widget)
+
+        # Rating
+        rating_widget = RatingFilterWidget("⭐ Rating Minimo", self.db.db_path)
+        filter_widgets['rating'] = rating_widget
+        filters_container_layout.addWidget(rating_widget)
+
+        filters_container_layout.addStretch()
+        scroll_area.setWidget(filters_container)
+        layout.addWidget(scroll_area)
+
+        # Pulsanti
+        buttons_layout = QHBoxLayout()
+
+        btn_cancel = QPushButton("Annulla")
+        btn_cancel.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #da190b;
+            }
+        """)
+        btn_cancel.clicked.connect(dialog.reject)
+
+        btn_generate = QPushButton("Genera Playlist")
+        btn_generate.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        btn_generate.clicked.connect(lambda: self.generate_filtered_playlist_from_dialog(filter_widgets, dialog))
+
+        buttons_layout.addWidget(btn_cancel)
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(btn_generate)
+
+        layout.addLayout(buttons_layout)
+
+        # Mostra il dialog
+        if dialog.exec_() == QDialog.Accepted:
+            pass  # La generazione è gestita dal pulsante
+
+    def generate_filtered_playlist_from_dialog(self, filter_widgets, dialog):
+        """Genera una playlist con i filtri selezionati nel dialog"""
+        try:
+            # Ottieni i valori dai widget
+            genres = filter_widgets['genres'].get_selected_values()
+            years = filter_widgets['years'].get_selected_values()
+            rating_min = filter_widgets['rating'].get_selected_values()
+            actors = filter_widgets['actors'].get_selected_values()
+            directors = filter_widgets['directors'].get_selected_values()
+
+            # Chiedi il numero di video
+            limit, ok = QInputDialog.getInt(
+                dialog, "Numero di video", "Quanti video vuoi includere?",
+                value=20, min=1, max=1000, step=1
+            )
+
+            if not ok:
+                return
+
+            self.cleanup_vlc()
+
+            # Crea le impostazioni filtro
+            filter_settings = FilterSettings(
+                genres=genres,
+                years=years,
+                rating_min=rating_min,
+                actors=actors,
+                directors=directors,
+                enabled=True
+            )
+
+            # Genera la playlist filtrata
+            query_builder = FilterQueryBuilder()
+            query, params = query_builder.build_filtered_query(filter_settings)
+
+            # Aggiungi il limite
+            query += " LIMIT ?"
+            params.append(limit)
+
+            # Esegui la query
+            with sqlite3.connect(self.db.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+
+            if not results:
+                QMessageBox.information(dialog, "Nessun risultato",
+                                        "Nessun video trovato con i filtri selezionati.")
+                return
+
+            self.current_playlist = [result[0] for result in results]
+
+            if self.current_playlist:
+                self.save_playlist_m3u("playlist.m3u")
+                self.btn_show_posters.setEnabled(True)
+                self.btn_play_vlc.setEnabled(True)
+
+                # Mostra info sui filtri applicati
+                filter_info = []
+                if genres:
+                    filter_info.append(f"Generi: {', '.join(genres[:3])}{'...' if len(genres) > 3 else ''}")
+                if years:
+                    filter_info.append(f"Anni: {', '.join(map(str, years[:3]))}{'...' if len(years) > 3 else ''}")
+                if rating_min > 0:
+                    filter_info.append(f"Rating ≥ {rating_min}")
+                if actors:
+                    filter_info.append(f"Attori: {', '.join(actors[:2])}{'...' if len(actors) > 2 else ''}")
+                if directors:
+                    filter_info.append(f"Registi: {', '.join(directors[:2])}{'...' if len(directors) > 2 else ''}")
+
+                filter_text = " con filtri: " + ", ".join(filter_info) if filter_info else ""
+
+                QMessageBox.information(self, "Completato",
+                                        f"Playlist casuale{filter_text}\n"
+                                        f"Generata con {len(self.current_playlist)} video!")
+
+                self.show_playlist_posters()
+                self.play_with_vlc()
+            else:
+                QMessageBox.warning(dialog, "Attenzione", "Nessun video trovato!")
+
+            # Aggiorna lo status
+            self.update_playlist_status()
+
+            # Chiudi il dialog
+            dialog.accept()
+
+        except Exception as e:
+            QMessageBox.critical(dialog, "Errore", f"Errore durante la generazione: {str(e)}")
+
     def check_and_switch_to_playlist_tab(self):
         """Se il database è popolato, spostati sul tab Genera Playlist"""
         try:
@@ -793,11 +1107,13 @@ class MainWindow(QMainWindow):
                 # Aggiorna lo status della playlist
                 self.update_playlist_status()
 
+                """
                 if show_message:
                     QMessageBox.information(self, "Database Pronto",
                                             f"Il database contiene {self.db_table.rowCount()} video.\n"
                                             "Ora puoi generare le tue playlist!"
                                             )
+                """
 
         except Exception as e:
             print(f"Errore cambio tab: {e}")
@@ -895,7 +1211,6 @@ class MainWindow(QMainWindow):
                         border-radius: 5px;
                         gridline-color: #4CAF50;
                     }
-                    /* ... [resto dello style] ... */
                 """)
             else:
                 self.db_table.setStyleSheet("""
@@ -906,7 +1221,6 @@ class MainWindow(QMainWindow):
                         border-radius: 5px;
                         gridline-color: #555555;
                     }
-                    /* ... [resto dello style] ... */
                 """)
 
         except sqlite3.Error as e:
@@ -1078,7 +1392,7 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Errore", f"Errore durante la scansione: {error_msg}")
 
     def generate_random_playlist(self, checked=False):
-        """Genera playlist casuale chiedendo all'utente il numero di video"""
+        """Genera playlist casuale semplice (senza filtri)"""
         limit, ok = QInputDialog.getInt(
             self, "Numero di video", "Quanti video vuoi includere?",
             value=20, min=1, max=1000, step=1
@@ -1090,6 +1404,7 @@ class MainWindow(QMainWindow):
         self.cleanup_vlc()
 
         try:
+            # Playlist completamente casuale (senza filtri)
             with sqlite3.connect(self.db.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT path FROM videos ORDER BY RANDOM() LIMIT ?", (limit,))
@@ -1098,10 +1413,11 @@ class MainWindow(QMainWindow):
 
             if self.current_playlist:
                 self.save_playlist_m3u("playlist.m3u")
-               # QMessageBox.information(self, "Completato",
-               #                        f"Playlist casuale generata con {len(self.current_playlist)} video!")
                 self.btn_show_posters.setEnabled(True)
                 self.btn_play_vlc.setEnabled(True)
+
+                QMessageBox.information(self, "Completato",
+                                        f"Playlist casuale generata con {len(self.current_playlist)} video!")
 
                 self.show_playlist_posters()
                 self.play_with_vlc()
@@ -1417,11 +1733,14 @@ class MainWindow(QMainWindow):
                     title = cursor.fetchone()
                     display_title = title[0] if title and title[0] else os.path.basename(path)
 
-                # Assicurati che il percorso sia in formato Windows corretto
-                windows_path = path.replace('/', '\\')
+                # Normalizza il percorso per il sistema operativo corrente
+                if platform.system() == "Windows":
+                    normalized_path = path.replace('/', '\\')
+                else:
+                    normalized_path = path.replace('\\', '/')
 
                 f.write(f"#EXTINF:-1,{display_title}\n")
-                f.write(f"{windows_path}\n")
+                f.write(f"{normalized_path}\n")
 
     def normalize_path_for_display(self, path):
         """Normalizza il percorso per la visualizzazione"""
@@ -1453,32 +1772,48 @@ class MainWindow(QMainWindow):
             if vlc_path and os.path.exists(vlc_path):
                 try:
                     # Avvia VLC con opzioni per evitare multiple istanze
-                    subprocess.Popen([
-                        vlc_path,
-                        playlist_path,
-                        '--playlist-autostart',
-                        '--one-instance',  # Una sola istanza
-                        '--playlist-enqueue',  # Aggiungi alla playlist esistente
-                        '--qt-minimal-view'
-                    ])
-
-                    """
-                    QMessageBox.information(self, "VLC Avviato",
-                                            "VLC è stato avviato con la playlist.\n"
-                                            "Se VLC era già aperto, la playlist è stata aggiunta."
-                                            )
-                    """
+                    if platform.system() == "Windows":
+                        subprocess.Popen([
+                            vlc_path,
+                            playlist_path,
+                            '--playlist-autostart',
+                            '--one-instance',
+                            '--playlist-enqueue',
+                            '--qt-minimal-view'
+                        ])
+                    else:
+                        # Linux/Mac
+                        subprocess.Popen([
+                            vlc_path,
+                            playlist_path,
+                            '--playlist-autostart',
+                            '--one-instance'
+                        ])
 
                 except Exception as e:
                     print(f"Errore avvio VLC: {e}")
                     # Fallback: apri con programma predefinito
-                    os.startfile(playlist_path)
+                    self.open_with_default_player(playlist_path)
             else:
                 # Se VLC non è trovato, apri con programma predefinito
-                os.startfile(playlist_path)
+                self.open_with_default_player(playlist_path)
 
         except Exception as e:
             QMessageBox.critical(self, "Errore", f"Impossibile avviare la riproduzione: {str(e)}")
+
+    def open_with_default_player(self, file_path):
+        """Apri il file con il programma predefinito del sistema"""
+        try:
+            if platform.system() == "Windows":
+                os.startfile(file_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.Popen(['open', file_path])
+            else:  # Linux e altri
+                subprocess.Popen(['xdg-open', file_path])
+        except Exception as e:
+            print(f"Errore apertura con programma predefinito: {e}")
+            # Ultimo tentativo: mostra il percorso all'utente
+            self.show_playlist_ready_message(file_path)
 
     def show_playlist_ready_message(self, playlist_path):
         """Mostra messaggio con istruzioni"""
@@ -1498,51 +1833,94 @@ class MainWindow(QMainWindow):
             pass
 
     def find_vlc_path(self):
-        """Trova il percorso di VLC su Windows in modo completo"""
-        possible_paths = [
-            r"C:\Program Files\VideoLAN\VLC\vlc.exe",
-            r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe",
-            r"D:\Program Files\VideoLAN\VLC\vlc.exe",
-            r"E:\Program Files\VideoLAN\VLC\vlc.exe",
-            r"vlc.exe",
-        ]
+        """Trova il percorso di VLC in modo cross-platform"""
+        system = platform.system()
 
-        # Cerca nei percorsi di sistema
-        for path in possible_paths:
-            if os.path.exists(path):
-                return path
+        if system == "Windows":
+            possible_paths = [
+                r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+                r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe",
+                r"D:\Program Files\VideoLAN\VLC\vlc.exe",
+                r"E:\Program Files\VideoLAN\VLC\vlc.exe",
+                r"vlc.exe",
+            ]
 
-        # Cerca nel registro di Windows
-        try:
-            import winreg
+            # Cerca nei percorsi di sistema
+            for path in possible_paths:
+                if os.path.exists(path):
+                    return path
+
+            # Cerca nel registro di Windows
             try:
-                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\VideoLAN\VLC")
-                install_dir = winreg.QueryValueEx(key, "InstallDir")[0]
-                vlc_path = os.path.join(install_dir, "vlc.exe")
-                if os.path.exists(vlc_path):
-                    return vlc_path
+                import winreg
+                try:
+                    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\VideoLAN\VLC")
+                    install_dir = winreg.QueryValueEx(key, "InstallDir")[0]
+                    vlc_path = os.path.join(install_dir, "vlc.exe")
+                    if os.path.exists(vlc_path):
+                        return vlc_path
+                except:
+                    pass
+
+                # Prova anche in HKEY_CURRENT_USER
+                try:
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\VideoLAN\VLC")
+                    install_dir = winreg.QueryValueEx(key, "InstallDir")[0]
+                    vlc_path = os.path.join(install_dir, "vlc.exe")
+                    if os.path.exists(vlc_path):
+                        return vlc_path
+                except:
+                    pass
+            except ImportError:
+                pass
+
+            # Ultimo tentativo: cerca nel PATH
+            try:
+                result = subprocess.run(["where", "vlc.exe"], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    return result.stdout.strip().split('\n')[0]
             except:
                 pass
 
-            # Prova anche in HKEY_CURRENT_USER
+        elif system == "Linux":
+            # Cerca VLC su Linux
+            possible_paths = [
+                "/usr/bin/vlc",
+                "/usr/local/bin/vlc",
+                "/snap/bin/vlc",
+                "/opt/vlc/bin/vlc"
+            ]
+
+            for path in possible_paths:
+                if os.path.exists(path):
+                    return path
+
+            # Cerca nel PATH
             try:
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\VideoLAN\VLC")
-                install_dir = winreg.QueryValueEx(key, "InstallDir")[0]
-                vlc_path = os.path.join(install_dir, "vlc.exe")
-                if os.path.exists(vlc_path):
-                    return vlc_path
+                result = subprocess.run(["which", "vlc"], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    return result.stdout.strip()
             except:
                 pass
-        except ImportError:
-            pass
 
-        # Ultimo tentativo: cerca nel PATH
-        try:
-            result = subprocess.run(["where", "vlc.exe"], capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                return result.stdout.strip().split('\n')[0]
-        except:
-            pass
+        elif system == "Darwin":  # macOS
+            possible_paths = [
+                "/Applications/VLC.app/Contents/MacOS/VLC",
+                "/usr/local/bin/vlc",
+                "/opt/homebrew/bin/vlc"
+            ]
+
+            for path in possible_paths:
+                if os.path.exists(path):
+                    return path
+
+            # Cerca nel PATH
+            try:
+                result = subprocess.run(["which", "vlc"], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    return result.stdout.strip()
+            except:
+                pass
 
         return None
 
@@ -1553,6 +1931,7 @@ class MainWindow(QMainWindow):
         message = (
             f"Playlist generata con {len(self.current_playlist)} video!\n"
             f"File salvato come: {playlist_path}\n\n"
+            "Apri manualmente il file con VLC o altro player."
         )
 
         if not self.check_vlc_installed():
@@ -1567,13 +1946,12 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Playlist Pronta", message)
 
         # Apri la cartella contenente la playlist
-        try:
-            if platform.system() == "Windows":
-                os.startfile(os.path.dirname(playlist_path))
-            else:
-                subprocess.Popen(['open', os.path.dirname(playlist_path)])
-        except:
-            pass
+        if platform.system() == "Windows":
+            try:
+                folder_path = os.path.dirname(playlist_path)
+                os.startfile(folder_path)
+            except:
+                pass
 
     def show_playlist_posters(self):
         if not self.current_playlist:
@@ -2095,9 +2473,11 @@ class MainWindow(QMainWindow):
         try:
             self.cleanup_vlc()
 
-            # Normalizza il percorso per Windows
+            # Normalizza il percorso per il sistema operativo
             if platform.system() == "Windows":
                 video_path = video_path.replace('/', '\\')
+            else:
+                video_path = video_path.replace('\\', '/')
 
             # Crea una playlist temporanea con solo questo video
             temp_playlist = "temp_playlist.m3u"
@@ -2111,7 +2491,7 @@ class MainWindow(QMainWindow):
             if vlc_path and os.path.exists(vlc_path):
                 subprocess.Popen([vlc_path, temp_playlist, '--playlist-autostart'])
             else:
-                os.startfile(video_path)  # Apri con programma predefinito
+                self.open_with_default_player(video_path)  # Apri con programma predefinito
 
         except Exception as e:
             QMessageBox.warning(self, "Errore", f"Impossibile riprodurre il video: {str(e)}")

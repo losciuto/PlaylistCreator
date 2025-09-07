@@ -2,3 +2,4 @@
 from . import database
 from . import gui
 from . import utils
+from . import test

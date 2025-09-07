@@ -16,5 +16,5 @@ PlaylistCreator/
 |    └── filter_utils.py
 └── utils/
     ├── __init__.py
-
     └── vlc_manager.py
+

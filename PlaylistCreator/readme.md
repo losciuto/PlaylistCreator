@@ -1,0 +1,20 @@
+PlaylistCreator/
+├── main.py
+├── database/
+│   ├── __init__.py
+│   ├── video_db.py
+│   └── nfo_parser.py
+├── gui/
+│   ├── __init__.py
+│   ├── main_window.py
+│   ├── scan_worker.py
+│   └── widgets.py
+├── filters/
+|    ├── __init__.py
+|    ├── filter_manager.py
+|    ├── filter_widgets.py
+|    └── filter_utils.py
+└── utils/
+    ├── __init__.py
+    └── vlc_manager.py
+

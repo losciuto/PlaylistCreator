@@ -81,32 +81,35 @@ class FilterQueryBuilder:
             with sqlite3.connect(db_path) as conn:
                 cursor = conn.cursor()
 
-                if column_name == 'genres':
-                    # Special handling per generi separati da virgola
+                if column_name == 'actors':
+                    # APPROCCIO SICURO per attori: split manuale
                     cursor.execute("""
-                        SELECT DISTINCT TRIM(genre) 
+                                   WITH RECURSIVE split(value, rest) AS (SELECT '',
+                                                                                actors || ','
+                                                                         FROM videos
+                                                                         WHERE actors IS NOT NULL
+                                                                           AND actors != ''
+
+                                   UNION ALL
+
+                                   SELECT TRIM(SUBSTR(rest, 1, INSTR(rest, ',') - 1)),
+                                          SUBSTR(rest, INSTR(rest, ',') + 1)
+                                   FROM split
+                                   WHERE rest != ''
+                        )
+                                   SELECT DISTINCT value
+                                   FROM split
+                                   WHERE value != '' AND value IS NOT NULL
+                                   ORDER BY value
+                                   """)
+                elif column_name in ['genres', 'directors']:
+                    # Usa json_each per generi e registi (se funziona)
+                    cursor.execute(f"""
+                        SELECT DISTINCT TRIM(value) 
                         FROM videos, 
-                        json_each('["' || REPLACE(genres, ',', '","') || '"]') AS genre 
-                        WHERE genres IS NOT NULL AND genres != ''
-                        ORDER BY genre
-                    """)
-                elif column_name == 'actors':
-                    # Special handling per attori separati da virgola
-                    cursor.execute("""
-                        SELECT DISTINCT TRIM(actor) 
-                        FROM videos, 
-                        json_each('["' || REPLACE(actors, ',', '","') || '"]') AS actor 
-                        WHERE actors IS NOT NULL AND actors != ''
-                        ORDER BY actor
-                    """)
-                elif column_name == 'directors':
-                    # Special handling per registi separati da virgola
-                    cursor.execute("""
-                        SELECT DISTINCT TRIM(director) 
-                        FROM videos, 
-                        json_each('["' || REPLACE(directors, ',', '","') || '"]') AS director 
-                        WHERE directors IS NOT NULL AND directors != ''
-                        ORDER BY director
+                        json_each('["' || REPLACE({column_name}, ',', '","') || '"]') 
+                        WHERE {column_name} IS NOT NULL AND {column_name} != ''
+                        ORDER BY value
                     """)
                 else:
                     # Per colonne normali (year, rating)

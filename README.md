@@ -16,4 +16,4 @@ i filtri sono per genere, per anno, per attore, per regista ed infine per il min
 >
 > C'e' la possibilità di gestire il database, con il Tab 'Gestione DB', tranne l'inserimento manuale e la modifica.
 >
-> Mettento il check sulla voce 'Attiva controllo remoto', è possibile utilizzare il controllo remoto in rete: vclremote.
+> Mettento il check sulla voce 'Attiva controllo remoto', è possibile utilizzare il controllo remoto in rete: [vclremote] (https://github.com/losciuto/vlcremote).

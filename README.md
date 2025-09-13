@@ -10,4 +10,8 @@ si scelgono i video voluti manualmente.
 * Playlist degli ultimi video scaricati:
 ha la funzione di riprodurre gli ultimi video scaricati nelle unità oppure gli ultimi a cui sono stati modificati i metadati.
 * Playlist filtrate:
-i filtri sono per genere, per anno, per attore, per regista ed infine per il mino di 'rating'
+i filtri sono per genere, per anno, per attore, per regista ed infine per il minimo di 'rating'. Ogni filtro, tranne il rating, è multi-selezione.
+
+> Dopo aver generato una playlist e scelto il numero di video da riprodurre, vengono visualizzati i poster e cliccando sui poster ne fa vedere la locandina. Tutto questo se sono presenti i file .nfo. Chiudendo la finestra dei poster, inizia automativamente la riproduzione che è prevista solo con VLC, al momento. Per cui è necessartio che VLC sia già installato prima dell'esecuzione.
+>
+> 

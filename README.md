@@ -14,4 +14,4 @@ i filtri sono per genere, per anno, per attore, per regista ed infine per il min
 
 > Dopo aver generato una playlist e scelto il numero di video da riprodurre, vengono visualizzati i poster e cliccando sui poster ne fa vedere la locandina. Tutto questo se sono presenti i file .nfo. Chiudendo la finestra dei poster, inizia automaticamente la riproduzione che è prevista solo con VLC, al momento. Per cui è necessartio che VLC sia già installato prima dell'esecuzione.
 >
-> C'e' la possibilità di gestire il database, con il Tab 'Gestione DB', tranne l'inserimento manuale.
+> C'e' la possibilità di gestire il database, con il Tab 'Gestione DB', tranne l'inserimento manuale e la modifica.
